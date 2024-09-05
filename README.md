@@ -11,14 +11,25 @@ This FastAPI-based application provides endpoints for managing restaurant reserv
 
 ## Setup
 
-1. Install dependencies:
+1. Set up a Python virtual environment:
    ```
-   pip install fastapi sqlalchemy
+   python3 -m venv venv
+   source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
    ```
 
-2. Set up your database connection in `database.py`
+2. Install dependencies:
+   ```
+   pip3 install -r requirements.txt
+   ```
 
-3. Run the application:
+3. Set up your database connection in `database.py`
+
+4. Run the startup script to populate initial data:
+   ```
+   python3 startup.py
+   ```
+
+5. Run the application:
    ```
    uvicorn app.main:app --reload
    ```
@@ -38,10 +49,3 @@ Refer to the API documentation at `/docs` after running the application for deta
 
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
 
-## License
-
-[MIT](https://choosealicense.com/licenses/mit/)
-
-```sh {"id":"01J71VESM129HJPK4D2K4AD0NF"}
-
-```
