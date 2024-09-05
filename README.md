@@ -39,22 +39,18 @@ This FastAPI-based application provides endpoints for managing restaurant reserv
 ### Restaurants
 - `GET /restaurants/`: List all restaurants
 - `POST /restaurants/`: Create a new restaurant
-- `GET /restaurants/{restaurant_id}/`: Get details of a specific restaurant
-- `PUT /restaurants/{restaurant_id}/`: Update a restaurant
 - `DELETE /restaurants/{restaurant_id}/`: Delete a restaurant
 
 ### Tables
-- `GET /restaurants/{restaurant_id}/tables/`: Get tables for a specific restaurant
-- `POST /restaurants/{restaurant_id}/tables/`: Add a new table to a restaurant
-- `PUT /restaurants/{restaurant_id}/tables/{table_id}/`: Update a table
-- `DELETE /restaurants/{restaurant_id}/tables/{table_id}/`: Delete a table
+- `GET /tables/`: Get all tables
+- `POST /tables/`: Add a new table
+- `PUT /tables/{table_id}/`: Update a table
+- `DELETE /tables/{table_id}/`: Delete a table
 
 ### Reservations
-- `POST /restaurants/{restaurant_id}/reservations/`: Create a new reservation
-- `GET /restaurants/{restaurant_id}/reservations/`: List all reservations for a restaurant
-- `GET /restaurants/{restaurant_id}/reservations/{reservation_id}/`: Get details of a specific reservation
-- `PUT /restaurants/{restaurant_id}/reservations/{reservation_id}/`: Update a reservation
-- `DELETE /restaurants/{restaurant_id}/reservations/{reservation_id}/`: Cancel a reservation
+- `POST /reservations/`: Create a new reservation
+- `GET /reservations/`: List all reservations
+- `DELETE /reservations/{reservation_id}/`: Cancel a reservation
 
 ### Search
 - `POST /restaurants/search/`: Search for restaurants with available tables
