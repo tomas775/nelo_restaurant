@@ -4,6 +4,9 @@ from datetime import datetime, timedelta
 from . import models
 from . import schemas
 import logging
+from . import utils
+
+DIETARY_OPTIONS = {"vegan", "paleo", "gluten-free", "halal", "kosher"}
 
 # Main function to get available restaurants based on diners' restrictions and time
 def get_available_restaurants(db: Session, diners: list, time: datetime):
@@ -12,14 +15,12 @@ def get_available_restaurants(db: Session, diners: list, time: datetime):
     # Step 1: Extract all dietary restrictions from the diners
     dietary_restrictions = set()
     for diner in diners:
-        # Accessing Pydantic model fields directly
         dietary_restrictions.update(diner.dietary_restrictions)
 
     logging.info("Collected dietary restrictions: %s", dietary_restrictions)
     group_size = len(diners)
     logging.info("Group size: %d", group_size)
 
-    # Proceed with matching and filtering restaurants
     matching_restaurants = get_matching_restaurants(db, dietary_restrictions)
     if not matching_restaurants:
         logging.info("No restaurants found that meet dietary restrictions.")
@@ -32,20 +33,15 @@ def get_available_restaurants(db: Session, diners: list, time: datetime):
 
     return available_restaurants
 
-
 # Function to get restaurants matching all dietary restrictions
 def get_matching_restaurants(db: Session, dietary_restrictions: set):
-    # This function checks if the restaurant endorsements can accommodate dietary restrictions
     matching_restaurants = []
     
-    # Query all restaurants
     for restaurant in db.query(models.Restaurant).all():
-        # Split the restaurant's endorsements into a list (assuming it's stored as a comma-separated string)
-        restaurant_endorsements = restaurant.endorsements.split(", ") if restaurant.endorsements else []
-        logging.info(f"Checking restaurant: {restaurant.name} with endorsements: {restaurant_endorsements}")
+        restaurant_dietary_options = set(utils.deserialize_list(restaurant.dietary_options))
+        logging.info(f"Checking restaurant: {restaurant.name} with dietary options: {restaurant_dietary_options}")
 
-        # Ensure the restaurant can accommodate all dietary restrictions
-        if can_accommodate(restaurant_endorsements, dietary_restrictions):
+        if can_accommodate(restaurant_dietary_options, dietary_restrictions):
             matching_restaurants.append(restaurant)
             logging.info(f"Restaurant {restaurant.name} can accommodate the dietary restrictions")
         else:
@@ -53,10 +49,67 @@ def get_matching_restaurants(db: Session, dietary_restrictions: set):
     
     return matching_restaurants
 
-def can_accommodate(endorsements: list, restrictions: set):
-    # Match the endorsements with dietary restrictions (ensures all restrictions are accommodated)
-    return all(any(restriction.lower() in endorsement.lower() for endorsement in endorsements) for restriction in restrictions)
+def can_accommodate(restaurant_dietary_options: set, restrictions: set):
+    return restrictions.issubset(restaurant_dietary_options)
 
+# Function to create a restaurant with endorsements and dietary options
+def create_restaurant(db: Session, restaurant: schemas.RestaurantCreate):
+    # Serialize the list of dietary options and endorsements
+    serialized_dietary_options = utils.serialize_list(restaurant.dietary_options)
+    serialized_endorsements = utils.serialize_list(restaurant.endorsements)
+    
+    # Create a new Restaurant instance
+    new_restaurant = models.Restaurant(
+        name=restaurant.name, 
+        dietary_options=serialized_dietary_options,
+        endorsements=serialized_endorsements
+    )
+    
+    db.add(new_restaurant)
+    try:
+        db.commit()
+        db.refresh(new_restaurant)
+        
+        # Deserialize the dietary options and endorsements before returning
+        new_restaurant.dietary_options = utils.deserialize_list(new_restaurant.dietary_options)
+        new_restaurant.endorsements = utils.deserialize_list(new_restaurant.endorsements)
+        
+        return new_restaurant
+    except IntegrityError:
+        db.rollback()
+        raise Exception("Restaurant with this name already exists")
+
+
+# Function to create a diner with dietary restrictions
+def create_diner(db: Session, name: str, dietary_restrictions: list):
+    serialized_restrictions = utils.serialize_list(dietary_restrictions)
+    
+    diner = models.Diner(name=name, dietary_restrictions=serialized_restrictions)
+    db.add(diner)
+    db.commit()
+    db.refresh(diner)
+    
+    diner.dietary_restrictions = utils.deserialize_list(diner.dietary_restrictions)
+    
+    return diner
+
+# Function to get all diners (deserialize when reading)
+def get_all_diners(db: Session):
+    diners = db.query(models.Diner).all()
+    
+    for diner in diners:
+        diner.dietary_restrictions = utils.deserialize_list(diner.dietary_restrictions)
+    return diners
+
+# Function to get all restaurants (deserialize endorsements and dietary options)
+def get_all_restaurants(db: Session):
+    restaurants = db.query(models.Restaurant).all()
+    
+    for restaurant in restaurants:
+        restaurant.dietary_options = utils.deserialize_list(restaurant.dietary_options)
+        restaurant.endorsements = utils.deserialize_list(restaurant.endorsements)
+    
+    return restaurants
 
 # Function to check if restaurant tables are available and match the group size
 def get_available_restaurants_with_tables(db: Session, restaurants: list, group_size: int, time: datetime):
@@ -66,12 +119,11 @@ def get_available_restaurants_with_tables(db: Session, restaurants: list, group_
         if available_table:
             available_restaurants.append({
                 "name": restaurant.name,
-                "endorsements": restaurant.endorsements.split(", ") if restaurant.endorsements else [],
+                "endorsements": utils.deserialize_list(restaurant.endorsements),
                 "table_id": available_table.id,
                 "capacity": available_table.capacity
             })
     return available_restaurants
-
 
 # Function to find an available table that meets the group size and has no overlapping reservation
 def find_available_table(db: Session, restaurant: models.Restaurant, group_size: int, time: datetime):
@@ -98,7 +150,14 @@ def is_table_available(db: Session, table: models.Table, time: datetime):
 
 # Function to create a reservation for a diner at a specific table and time
 def create_reservation(db: Session, diner_id: int, table_id: int, time: datetime):
-    # Create a new reservation
+    overlapping_reservation = db.query(models.Reservation).filter(
+        models.Reservation.diner_id == diner_id,
+        models.Reservation.time.between(time, time + timedelta(hours=2))
+    ).first()
+
+    if overlapping_reservation:
+        raise Exception("Diner has an overlapping reservation.")
+
     new_reservation = models.Reservation(diner_id=diner_id, table_id=table_id, time=time)
     db.add(new_reservation)
     db.commit()
@@ -114,70 +173,6 @@ def delete_reservation(db: Session, reservation_id: int):
 # Function to get all reservations
 def get_all_reservations(db: Session):
     return db.query(models.Reservation).all()
-
-# Function to get all restaurants
-def get_all_restaurants(db: Session):
-    restaurants = db.query(models.Restaurant).all()
-    
-    # Convert endorsements to a list before returning
-    for restaurant in restaurants:
-        restaurant.endorsements = restaurant.endorsements.split(", ") if restaurant.endorsements else []
-    
-    return restaurants
-
-
-# Function to create a diner with dietary restrictions
-def create_diner(db: Session, name: str, dietary_restrictions: list):
-    # Serialize the list into a comma-separated string for storage
-    serialized_restrictions = ", ".join(dietary_restrictions)
-    
-    # Create the new diner
-    diner = models.Diner(name=name, dietary_restrictions=serialized_restrictions)
-    db.add(diner)
-    db.commit()
-    db.refresh(diner)
-    
-    # Deserialize the restrictions (convert string back to list) for the response
-    diner.dietary_restrictions = diner.dietary_restrictions.split(", ") if diner.dietary_restrictions else []
-    
-    return diner
-
-# Function to get all diners (deserialize when reading)
-def get_all_diners(db: Session):
-    diners = db.query(models.Diner).all()
-    
-    # Deserialize dietary restrictions back to a list
-    for diner in diners:
-        diner.dietary_restrictions = diner.dietary_restrictions.split(", ") if diner.dietary_restrictions else []
-    return diners
-
-# Function to create a restaurant with endorsements
-# Function to create a restaurant with endorsements
-def create_restaurant(db: Session, restaurant: schemas.RestaurantCreate):
-    # Serialize the list of endorsements into a comma-separated string
-    serialized_endorsements = ", ".join(restaurant.endorsements)
-    new_restaurant = models.Restaurant(
-        name=restaurant.name, 
-        endorsements=serialized_endorsements,
-    
-    )
-    db.add(new_restaurant)
-    try:
-        db.commit()
-        db.refresh(new_restaurant)
-        # Deserialize endorsements before returning
-        new_restaurant.endorsements = new_restaurant.endorsements.split(", ") if new_restaurant.endorsements else []
-        
-        # Convert to schemas.Restaurant
-        return schemas.Restaurant(
-            id=new_restaurant.id,
-            name=new_restaurant.name,
-            endorsements=new_restaurant.endorsements,
-        )
-    except IntegrityError:
-        db.rollback()
-        raise Exception("Restaurant with this name already exists")
-    
 
 # Function to create a table
 def create_table(db: Session, table: schemas.TableBase):

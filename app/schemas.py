@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from typing import List
 from datetime import datetime
 
+
     
 class DinerBase(BaseModel):
     name: str
@@ -20,6 +21,7 @@ class Diner(DinerBase):
 # Restaurant Schemas
 class RestaurantBase(BaseModel):
     name: str
+    dietary_options: List[str]  # List of supported dietary options from the fixed set
     endorsements: List[str]
 
 class RestaurantCreate(RestaurantBase):

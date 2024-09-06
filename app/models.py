@@ -3,20 +3,27 @@ from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 from .database import Base
 
-class Diner(Base):
-    __tablename__ = "diners"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True)
-    dietary_restrictions = Column(String)  # Comma-separated values
+from sqlalchemy import Column, Integer, String, ARRAY
 
 class Restaurant(Base):
     __tablename__ = "restaurants"
     
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True)
-    endorsements = Column(String)  # Comma-separated values
+    # Store dietary options and endorsements as comma-separated strings
+    dietary_options = Column(String, default="")
+    endorsements = Column(String, default="")
 
+class Diner(Base):
+    __tablename__ = "diners"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True)
+    # Store dietary restrictions as a comma-separated string
+    dietary_restrictions = Column(String, default="")
+
+
+    
 class Table(Base):
     __tablename__ = "tables"
     

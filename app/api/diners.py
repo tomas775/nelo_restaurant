@@ -5,6 +5,7 @@ from datetime import datetime
 from .. import crud, schemas, database
 from typing import List
 
+
 router = APIRouter()
 
 # Endpoint to read all diners

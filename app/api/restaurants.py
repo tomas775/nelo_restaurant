@@ -10,7 +10,6 @@ router = APIRouter()
 # Endpoint to search for restaurants with an available table
 @router.post("/restaurants/search/", response_model=List[schemas.RestaurantResponse])
 def search_restaurant(request: schemas.SearchRequest, db: Session = Depends(database.get_db)):
-    # Log incoming data
     logging.info("Request received: %s", request)
     
     diners = request.diners
@@ -26,6 +25,7 @@ def search_restaurant(request: schemas.SearchRequest, db: Session = Depends(data
         raise HTTPException(status_code=404, detail="No restaurants available.")
     
     return restaurants
+
 
 # Endpoint to read all restaurants
 @router.get("/restaurants/", response_model=list[schemas.RestaurantResponse])
