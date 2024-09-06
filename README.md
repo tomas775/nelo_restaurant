@@ -59,8 +59,3 @@ This FastAPI-based application provides endpoints for managing restaurant reserv
 ## Usage
 
 Refer to the API documentation at `/docs` after running the application for detailed usage instructions and request/response schemas.
-
-## Contributing
-
-Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
-
